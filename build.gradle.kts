@@ -19,27 +19,35 @@ dependencies {
     compileOnly("com.j256.ormlite:ormlite-core:6.1")
 }
 
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
-    withSourcesJar()
-    withJavadocJar()
-}
-
 tasks {
+    java {
+        toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+        withSourcesJar()
+        withJavadocJar()
+    }
+
     compileJava {
         options.encoding = "UTF-8"
         options.release.set(17)
     }
-}
 
-sourceSets {
-    main {
-        java.setSrcDirs(listOf("src"))
-        resources.setSrcDirs(emptyList<String>())
+    javadoc {
+        (options as StandardJavadocDocletOptions).apply {
+            encoding = Charsets.UTF_8.name()
+            use()
+            tags("apiNote:a:API Note:")
+        }
     }
-    test {
-        java.setSrcDirs(emptyList<String>())
-        resources.setSrcDirs(emptyList<String>())
+
+    sourceSets {
+        main {
+            java.setSrcDirs(listOf("src"))
+            resources.setSrcDirs(emptyList<String>())
+        }
+        test {
+            java.setSrcDirs(emptyList<String>())
+            resources.setSrcDirs(emptyList<String>())
+        }
     }
 }
 
