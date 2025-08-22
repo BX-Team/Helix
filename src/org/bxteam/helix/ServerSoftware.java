@@ -1,20 +1,19 @@
 package org.bxteam.helix;
 
-import io.papermc.paper.plugin.configuration.PluginMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bxteam.helix.scheduler.Scheduler;
 import org.bxteam.helix.scheduler.bukkit.BukkitScheduler;
 import org.bxteam.helix.scheduler.folia.FoliaScheduler;
 import org.bxteam.helix.scheduler.paper.PaperScheduler;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
-
 public class ServerSoftware {
     public static boolean isFolia() {
-        return Arrays.stream(PluginMeta.class.getDeclaredMethods())
-                .map(Method::getName)
-                .anyMatch(s -> s.equals("isFoliaSupported"));
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 
     public static boolean isPaper() {
