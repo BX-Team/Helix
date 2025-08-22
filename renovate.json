@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "labels": [
+    "\uD83D\uDD04 dependencies"
+  ],
+  "packageRules": [
+    {
+      "groupName": "patch",
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "automerge": true,
+      "matchPackageNames": [
+        "*",
+        "!/dev.folia*/"
+      ]
+    },
+    {
+      "groupName": "minor",
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "automerge": true,
+      "matchPackageNames": [
+        "*",
+        "!/dev.folia*/"
+      ]
+    },
+    {
+      "groupName": "all-major",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "matchPackageNames": [
+        "*",
+        "!/dev.folia*/"
+      ]
+    }
+  ],
+  "schedule": [
+    "before 4am on Monday"
+  ],
+  "semanticCommitType": "build",
+  "commitMessagePrefix": "chore(deps): "
+}
