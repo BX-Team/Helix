@@ -1,89 +1,144 @@
 package org.bxteam.helix.logger;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.bxteam.helix.logger.appender.Appender;
+import org.bxteam.helix.logger.appender.ConsoleAppender;
 
-import static java.util.Objects.requireNonNull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
+/**
+ * A simple asynchronous logger that supports multiple appenders and listeners.
+ */
 public class Logger {
-    private final LogAdapter adapter;
-    private volatile LogLevel level = LogLevel.INFO;
+    private static final Logger GLOBAL_LOGGER = new Logger("Helix-Global");
+    private static final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "Helix-Logger");
+        t.setDaemon(true);
+        return t;
+    });
 
-    public Logger(@NotNull LogAdapter adapter) {
-        this.adapter = requireNonNull(adapter, "Log adapter cannot be null");
+    protected final String name;
+    protected final List<Appender> defaultAppenders;
+    protected final List<Function<LogEntry, Boolean>> listeners;
+    protected LogLevel currentLevel;
+
+    /**
+     * Constructs a Logger with the specified name.
+     * The default log level is INFO and a ConsoleAppender is added.
+     *
+     * @param name the name of the logger
+     */
+    public Logger(String name) {
+        this.name = name;
+        this.currentLevel = LogLevel.INFO;
+        this.defaultAppenders = new ArrayList<>();
+        this.defaultAppenders.add(new ConsoleAppender());
+        this.listeners = new ArrayList<>();
     }
 
-    public void setLevel(@NotNull LogLevel level) {
-        this.level = requireNonNull(level, "Log level cannot be null");
+    /**
+     * Constructs a Logger with the specified parameters.
+     *
+     * @param name         the name of the logger
+     * @param currentLevel the current log level
+     * @param appenders    the list of appenders
+     * @param listeners    the list of log entry listeners
+     */
+    public Logger(String name, LogLevel currentLevel, List<Appender> appenders, List<Function<LogEntry, Boolean>> listeners) {
+        this.name = name;
+        this.currentLevel = currentLevel;
+        this.defaultAppenders = new ArrayList<>(appenders);
+        this.listeners = new ArrayList<>(listeners);
     }
 
-    @NotNull
-    public LogLevel getLevel() {
-        return level;
+    /**
+     * Returns the global logger instance.
+     *
+     * @return the global Logger instance
+     */
+    public static Logger getGlobalLogger() {
+        return GLOBAL_LOGGER;
     }
 
-    public boolean isDebugEnabled() {
-        return LogLevel.DEBUG.isEnabled(level);
-    }
-
-    public boolean isInfoEnabled() {
-        return LogLevel.INFO.isEnabled(level);
-    }
-
-    public boolean isWarnEnabled() {
-        return LogLevel.WARN.isEnabled(level);
-    }
-
-    public boolean isErrorEnabled() {
-        return LogLevel.ERROR.isEnabled(level);
-    }
-
-    public void debug(@NotNull String message) {
-        if (isDebugEnabled()) {
-            adapter.log(LogLevel.DEBUG, message);
+    /**
+     * Logs the provided log entry using the specified log level and appenders.
+     * The log entry is first processed by the listeners. If any listener returns false,
+     * the logging is aborted.
+     *
+     * @param logLevel  the log level
+     * @param logEntry  the log entry to log
+     * @param appenders the list of appenders to use
+     */
+    public void log(LogLevel logLevel, LogEntry logEntry, List<Appender> appenders) {
+        for (Function<LogEntry, Boolean> listener : listeners) {
+            if (!listener.apply(logEntry)) {
+                return;
+            }
         }
+        if (logLevel.ordinal() < currentLevel.ordinal()) {
+            return;
+        }
+        executor.submit(() -> {
+            try {
+                for (Appender appender : appenders) {
+                    appender.append(logEntry);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
-    public void debug(@NotNull String message, @Nullable Throwable throwable) {
-        if (isDebugEnabled()) {
-            adapter.log(LogLevel.DEBUG, message, throwable);
-        }
+    /**
+     * Returns the name of the logger.
+     *
+     * @return the logger name
+     */
+    public String getName() {
+        return name;
     }
 
-    public void info(@NotNull String message) {
-        if (isInfoEnabled()) {
-            adapter.log(LogLevel.INFO, message);
-        }
+    /**
+     * Adds a new appender.
+     *
+     * @param appender the appender to add
+     */
+    public void addAppender(Appender appender) {
+        this.defaultAppenders.add(appender);
     }
 
-    public void info(@NotNull String message, @Nullable Throwable throwable) {
-        if (isInfoEnabled()) {
-            adapter.log(LogLevel.INFO, message, throwable);
-        }
+    /**
+     * Adds a listener to filter or process log entries.
+     *
+     * @param listener the log entry listener
+     */
+    public void addListener(Function<LogEntry, Boolean> listener) {
+        this.listeners.add(listener);
     }
 
-    public void warn(@NotNull String message) {
-        if (isWarnEnabled()) {
-            adapter.log(LogLevel.WARN, message);
-        }
+    /**
+     * Sets the current log level.
+     *
+     * @param currentLevel the new log level
+     */
+    public void setCurrentLevel(LogLevel currentLevel) {
+        this.currentLevel = currentLevel;
     }
 
-    public void warn(@NotNull String message, @Nullable Throwable throwable) {
-        if (isWarnEnabled()) {
-            adapter.log(LogLevel.WARN, message, throwable);
-        }
-    }
-
-    public void error(@NotNull String message) {
-        if (isErrorEnabled()) {
-            adapter.log(LogLevel.ERROR, message);
-        }
-    }
-
-    public void error(@NotNull String message, @Nullable Throwable throwable) {
-        if (isErrorEnabled()) {
-            adapter.log(LogLevel.ERROR, message, throwable);
-        }
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5L, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+            }
+        }));
     }
 }
-
