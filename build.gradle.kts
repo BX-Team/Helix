@@ -17,6 +17,7 @@ repositories {
 dependencies {
     compileOnly("dev.folia:folia-api:1.20.4-R0.1-SNAPSHOT")
     compileOnly("com.j256.ormlite:ormlite-core:6.1")
+    implementation("org.apache.maven:maven-artifact:3.9.11")
 }
 
 tasks {
