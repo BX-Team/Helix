@@ -6,6 +6,7 @@
   "labels": [
     "\uD83D\uDD04 dependencies"
   ],
+  "dependencyDashboard": false,
   "packageRules": [
     {
       "groupName": "patch",
